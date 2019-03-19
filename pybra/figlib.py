@@ -138,14 +138,12 @@ if __name__ == "__main__":
     from numpy.linalg import inv
     import numpy as np
 
+    # --- Test fig_move
     fig=plt.figure()
     fig_move(fig,AreaName='Right')
-
-
-
-
     plt.show()
     
+    # --- Test fig_grid
 #     plt.ion()
 #     figs=fig_grid(2,2)
 #     # figs=[]
