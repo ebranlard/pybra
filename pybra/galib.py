@@ -94,6 +94,11 @@ def populationSave(pop,directory='',basename='GA_DB_',newfile=False,fileformat='
         filename=files[-1]
         readflag='a'
 
+    directory=os.path.dirname(filename)
+    if len(directory)>0:
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+
     # Creating a matrix with the population data  
     nRow   = len(pop)
     nBases = len(pop[0])

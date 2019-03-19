@@ -1,4 +1,7 @@
 *.pyc
 *.ipynb
 __pycache__
+build
+dist
+*.egg*
 

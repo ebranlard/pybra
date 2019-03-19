@@ -1,3 +1,9 @@
 numpy  
 pandas
 future
+screeninfo
+deap
+hashlib
+matplotlib
+pylab
+pandas
