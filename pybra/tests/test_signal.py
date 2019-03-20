@@ -1,10 +1,5 @@
 import unittest
 import numpy as np
-# import os
-# import sys
-# MyDir=os.path.dirname(__file__)
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
 from pybra.signal import zero_crossings 
 
 # --------------------------------------------------------------------------------}

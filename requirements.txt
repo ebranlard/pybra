@@ -4,5 +4,4 @@ future
 screeninfo
 deap
 matplotlib
-pylab
 pandas
