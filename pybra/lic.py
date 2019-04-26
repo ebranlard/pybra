@@ -40,7 +40,7 @@ def lic(u,v,texture=None,kernel=31):
     vectors[:,:,1]=v
 
     # calling internal function
-    image = lic_internal.line_integral_convolution(vectors, texture, kernel)
+    image = line_integral_convolution(vectors, texture, kernel)
 
     return image
 
