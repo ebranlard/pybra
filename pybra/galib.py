@@ -17,12 +17,284 @@ import re
 import pandas as pd
 import pdb
 
+class Fitn():
+    pass
 
+class Indiv(list):
+    def __init__(self, *args):
+        list.__init__(self, *args)
+        self.fitness=Fitn()
+        self.fitness.values=[]
+# --------------------------------------------------------------------------------}
+# --- Gene MAP
+# --------------------------------------------------------------------------------{
+class GeneMap():
+    def __init__(self,name,nBases,protein_ranges,kind=None,protein_neutr=None,meta=None,resolution=1000):
+        """
+        A gene is between 0 and 1 
+        A protein is defined by the ranges
+        """
+        self.nBases = nBases
+        self.kind   = kind
+        self.protein_ranges = protein_ranges
+        self.protein_neutr  = protein_neutr
+        if protein_neutr is None:
+            self.protein_neutr=[(m+M)/2 for m,M in protein_ranges]
+        self.meta  = meta
+        self.resolution  = resolution
+
+        def pretty_name(n):
+            if n.find('|')>0:
+                s=n.split('|')
+                return s[-1]
+            elif n.find('\\')>0:
+                n=n.replace('.dat','')
+                s=n.split('\\')
+                return s[-1]
+            elif n.find('/')>0:
+                n=n.replace('.dat','')
+                s=n.split('/')
+                return s[-1]
+            else:
+                return n
+        self.name          = name
+        self.pretty_name   = pretty_name(name)
+
+    def __repr__(self):
+        s=''.join(['x']*self.nBases)+': '+self.name+'\n'
+        return s
+
+    def decode(self,gene,iBase=None):
+        if iBase is None:
+            prot =[]
+            for g,pr in zip(gene,self.protein_ranges):
+                p=pr[0]+ g*(pr[1]-pr[0])
+                prot.append(p)
+                if g<0 or g>1:
+                    print('g:',g, 'pr:',pr, ' -> p:',p)
+                    raise Exception('The gene cannot be decoded properly')
+        else:
+            g=gene
+            pr=self.protein_ranges[iBase]
+            prot=pr[0]+ g*(pr[1]-pr[0])
+            if g<0 or g>1:
+                print('g:',g, 'pr:',pr, ' -> p:',prot)
+                raise Exception('The base cannot be decoded properly')
+        return prot
+
+    def encode(self,protein):
+        gene=[]
+        for p,pr in zip(protein,self.protein_ranges):
+            g=(p-pr[0])/(pr[1]-pr[0])
+            gene.append(g)
+            if g>1 or g<0:
+                print('p:',p, 'pr:',pr, ' -> g:',g)
+                raise Exception('The protein cannot be encoded properly')
+        return gene
+
+    def neutralProtein(self):
+        return self.protein_neutr
+
+    def show_full_raw(self,gene):
+        s='['+' '.join([str(b) for b in gene])+']: '+self.name
+        return s
+
+    def show_full(self,gene):
+        def pretty(b,pr):
+            if self.resolution is None:
+                return str(b)
+            delta=pr[1]-pr[0]
+            if delta<=0:
+                return str(b)
+            nDec=int(np.log10(delta/self.resolution))
+            nInt=int(np.log10(pr[1]))
+            if nInt<0:
+                nInt=-1
+            if nDec<0:
+                fmt='{:'+str(nInt-nDec+3)+'.'+str(-nDec+1)+'f}'
+                #print(fmt)
+                return fmt.format(b)
+            elif nInt>0:
+                fmt='{:'+str(nInt+1)+'.0f}'
+                #print(fmt)
+                return fmt.format(b)
+            else:
+                return str(b)
+        
+        if self.nBases>1:
+            s=self.pretty_name+': ['+' '.join([pretty(b,rg) for b,rg in zip(self.decode(gene),self.protein_ranges)])+']'
+        else:
+            s=self.pretty_name+': '+pretty(self.decode(gene)[0],self.protein_ranges[0])
+        return s
+
+    def geneBounds(self):
+        return [(0,1)]*self.nBases
+
+    def proteinBounds(self):
+        return [(m,M) for m,M in self.protein_ranges]
+
+
+
+class ChromosomeMap(list):
+    def add(self,d):
+        self.append(d)
+
+    def append(self,d):
+        super(ChromosomeMap,self).append(d)
+        # TODO check that 
+        if not isinstance(d,GeneMap):
+            raise Exception('Can only add `GenMap` types')
+
+    @property
+    def nBases(self):
+        return sum([gene.nBases for gene in self])
+
+    @property
+    def nGenes(self):
+        return len(self)
+
+    def maxNBasesPerGene(self):
+        return max([gene.nBases for gene in self])
+
+    def neutralChromosome(self):
+        v=[]
+        for gm in self:
+            v+=gm.encode(gm.protein_neutr)
+        return v
+
+    def neutralProtein(self):
+        v=[]
+        for gm in self:
+            v+=gm.protein_neutr
+        return v
+
+    def decode(self,chromosome,iBase=None):
+        if iBase is None:
+            v=[]
+            for gm,gene in zip(self,self.split(chromosome)):
+                v+=gm.decode(gene) 
+        else:
+            if iBase>=self.nBases:
+                raise Exception('iBase should be between 0 and nBases')
+            i=0
+            for ig,gm in enumerate(self):
+                if (iBase>=i) and (iBase<i+gm.nBases):
+                    break
+                else:
+                    i+=gm.nBases
+            iBase=iBase-i
+            #print('New iBase: {} for gene: {} {}'.format(iBase,ig,gm))
+            v=gm.decode(chromosome,iBase)
+        return v
+
+    def encode(self,protein_chain):
+        v=[]
+        for gm,prot in zip(self,self.split(protein_chain)):
+            v+=gm.encode(prot) 
+        return v
+
+    def chromosomeBounds(self):
+        v=[]
+        for gm in self:
+            v+=gm.geneBounds() 
+        return v
+
+    def proteinChainBounds(self):
+        v=[]
+        for gm in self:
+            v+=gm.proteinBounds() 
+        return v
+
+
+    def __repr__(self):
+        s=''
+        fmt='{:'+str(self.maxNBasesPerGene())+'s}'
+        for gm in self:
+            s+=fmt.format(''.join(['x']*gm.nBases))+': '+gm.name+'\n'
+        return s
+
+    def show_full(self,chromosome,sep='\n'):
+        s=''
+        for gm,gene in zip(self,self.split(chromosome)):
+            s+=gm.show_full(gene)+sep
+        return s
+
+    def split(self,chromosome):
+        genes=[]
+        n=0
+        for gm in self:
+            genes.append(chromosome[n:n+gm.nBases])
+            n=n+gm.nBases
+        return genes
+
+# --------------------------------------------------------------------------------}
+# --- ID  
+# --------------------------------------------------------------------------------{
 def nparray_hash(x,length=16):
    return hashlib.md5((x.tobytes())).hexdigest()[:length]
 
 def chromID(p):
     return nparray_hash(np.array(p),length=32)
+
+# --------------------------------------------------------------------------------}
+# --- Parametric 
+# --------------------------------------------------------------------------------{
+def parameticGA(fitnessEvalFun,ch_map,nPerBase,nFitness,resolution=None):
+    """ 
+        Perform a parametric study using the same formalism of the Genetic algorithm
+        Each base is varies between 0 and 1 as defined by `nPerBase` (a list of values for each base or a single value)
+        The function `fitnessEvalFun` is evaluated on the population
+
+        `resolution` should be a power of 10, like 10, 100, 1000
+    
+    """
+    nBases=ch_map.nBases
+    if isinstance(nPerBase,list):
+        if len(nPerBase)!=nBases:
+            raise Exception('If nPerBase is a list it must be the same length as the number of bases')
+    else:
+        nPerBase= [nPerBase]*nBases
+
+    nTot       = np.prod(nPerBase)
+    nValuesCum = np.insert(np.cumprod(nPerBase),0,1)[:-1];
+    vBaseValues=[np.linspace(0,1,n) for n in nPerBase]
+    print('Parametric values (no rounding:)')
+    for v in vBaseValues:
+        print(v)
+    vProtValues=[np.array([ch_map.decode(g,iBase=j) for g in v]) for j,v in enumerate(vBaseValues)]
+    print('Prot values (no rounding:)')
+    for v in vProtValues:
+        print(v)
+    if resolution:
+        vBaseValues=[np.round(resolution*np.linspace(0,1,n))/resolution for n in nPerBase]
+        print('Parametric values (with rounding:)')
+        for v in vBaseValues:
+            print(v)
+        # we scale 
+        print('Prot values (with rounding:)')
+        vProtValues=[np.array([ch_map.decode(g,iBase=j) for g in v]) for j,v in enumerate(vBaseValues)]
+        for v in vProtValues:
+            print(v)
+
+    fits_arr  = np.zeros( tuple(nPerBase+[nFitness] ) )
+    fits_norm = np.zeros( tuple(nPerBase) )
+    ValFit    = np.zeros( tuple(nPerBase) )
+    
+    print('Creating population of {} individuals...'.format(nTot))
+    pop=[]
+    for i in range(nTot):
+        Indexes=(np.mod(np.floor(i/nValuesCum),nPerBase)).astype(int);
+        chromosome=Indiv([vBaseValues[j][Indexes[j]] for j in range(nBases) ])
+        #print(i,Indexes,chromosome)
+        pop.append(chromosome)
+
+    print('Evaluating population...')
+    for i,p in enumerate(pop):
+        Indexes=tuple((np.mod(np.floor(i/nValuesCum),nPerBase)).astype(int));
+        fits = fitnessEvalFun(p,stat='{:4.1f}% - '.format(100.0*i/nTot))
+        fits_norm[Indexes] = np.linalg.norm(fits)
+        fits_arr [Indexes] = fits
+    return fits_norm,fits_arr,pop,vBaseValues,vProtValues
 
 # --------------------------------------------------------------------------------}
 # --- Population/individual manipulations
@@ -37,7 +309,7 @@ def clone(x):
     return deepcopy(x)
 
 
-def populationTrimAccuracy(pop,nDecimals):
+def populationTrimAccuracy(pop,nDecimals=None):
     for i in range(len(pop)):
         for j in range(len(pop[0])):
             pop[i][j]=np.around(pop[i][j],decimals=nDecimals)
@@ -82,7 +354,7 @@ def populationPrint(pop,nBasePerGene=None,label=''):
 
 def populationSave(pop,directory='',basename='GA_DB_',newfile=False,fileformat='csv',fitsnames=None,basesnames=None,fitsformats=None,basesformats=None):
     # Detecting existing files
-    files=glob.glob(os.path.join(directory,basename+'*'+'.'+fileformat))
+    files=glob.glob(os.path.join(directory,basename+'[0-9]*'+'.'+fileformat))
     if newfile:
         if len(files)==0:
             i=0
@@ -160,7 +432,7 @@ def populationLoad(filename=None, nFits=2):
     return df,pop
 
 
-def timelinePlot(df,fig):
+def timelinePlot(df,fig,noFit=True):
     if fig is None:
         fig=plt.figure(figsize=(5, 12));
     if len(fig.axes)==0:
@@ -169,12 +441,17 @@ def timelinePlot(df,fig):
     ax.clear()
     # shifting values for plottting
     numeric_cols = [col for col in df if df[col].dtype.kind != 'O']
+    if noFit:
+        numeric_cols = [col for col in numeric_cols if col.find('Fit')!=0]
     for i,c in enumerate(numeric_cols):
         df[c]= df[c] + len(numeric_cols)-i-1
-    df.plot(ax=ax)
+    df[numeric_cols].plot(ax=ax)
     for i in range(len(numeric_cols)):
         ax.plot([0,len(df)],[i,i],'k--');
     ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5));
+    ax.set_title('Evolution of chromosome bases')
+    ax.set_xlabel('Cumulative number of chromosomes')
+    ax.set_ylabel('Bases number')
 
 
 

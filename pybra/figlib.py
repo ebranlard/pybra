@@ -101,13 +101,6 @@ def fig_grid(nX=1,nY=1,AreaName=None,ScreenName='rightscreen',Area=None):
             else:
                 figs.append(plt.figure())
             
-    if Area is None:
-        Area=_getArea(AreaName,ScreeName)
-    W=int(Area.width)
-    H=int(Area.height)
-    #print('Area  Position  : X={} Y={}'.format(Area.x,Area.y))
-    #print('Area  Dimensions: Width={} Height={}'.format(W,H))
-
     fW=int(W/nY)
     fH=int(H/nX)
     #print('Window Dimensions: Width={} Height={}'.format(fW,fH))
