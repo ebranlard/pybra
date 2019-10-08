@@ -53,6 +53,9 @@ def darken_color(r, g, b, factor=0.1):
 # --------------------------------------------------------------------------------}
 # --- COLOR MAPS 
 # --------------------------------------------------------------------------------{
+def python_colors():
+    return plt.rcParams['axes.prop_cycle'].by_key()['color']
+
 # ---- ColorMap
 def make_colormap(seq,values=None):
     """Return a LinearSegmentedColormap

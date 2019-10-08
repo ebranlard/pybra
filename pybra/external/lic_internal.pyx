@@ -5,14 +5,18 @@ cimport numpy as np
 cdef void _advance(float vx, float vy,
         int* x, int* y, float*fx, float*fy, int w, int h):
     cdef float tx, ty
-    if vx>=0:
+    if vx>0:
         tx = (1-fx[0])/vx
-    else:
+    elif vx<0:
         tx = -fx[0]/vx
-    if vy>=0:
-        ty = (1-fy[0])/vy
     else:
+        tx = 1 #TODO
+    if vy>0:
+        ty = (1-fy[0])/vy
+    elif vy<0:
         ty = -fy[0]/vy
+    else:
+        ty = 1 #TODO
     if tx<ty:
         if vx>=0:
             x[0]+=1

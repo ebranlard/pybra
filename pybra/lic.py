@@ -1,4 +1,6 @@
 import numpy as np
+from pybra.colors import adjust_color_lightness
+from pybra.curves import streamQuiver
 try:
     from pybra.external.lic_internal  import line_integral_convolution
 except:
@@ -13,7 +15,60 @@ A substitude dummy function is provided for the current script to run
 
 """)
     def line_integral_convolution(v,t,k):
-        return np.one(v[:,:,0].shape)*len(k)/2
+        return np.ones(v[:,:,0].shape)*len(k)/2
+
+
+
+
+def licImage(x,y,u,v,nLICKernel=31,kernel=None,texture=None,minSpeed=None,maxSpeed=None,accentuation=1.0,offset=0.1,spread=1,axial=True,cmap=None):
+    u=np.asarray(u)
+    v=np.asarray(v)
+
+    if kernel is None:
+        kernel = np.sin(np.arange(nLICKernel)*np.pi/nLICKernel)
+
+    if texture is None:
+        texture = np.random.rand(u.shape[1],u.shape[0]).astype(np.float32)
+    nLICKernel=len(kernel)
+
+    kernel = kernel*accentuation
+    kernel = kernel.astype(np.float32)
+
+    image=lic(u,v,texture=texture,kernel=kernel)
+    image=image-np.mean(image)+nLICKernel/2 # Making sure all images have the same mean
+    image=image/nLICKernel # scaling between 0 and 1
+    image=offset+spread*image
+
+    if axial:
+        Speed=u
+    else:
+        Speed=np.sqrt((u**2+v**2))
+    if minSpeed is None:
+        minSpeed = Speed.min()
+        maxSpeed = Speed.max()
+    Speed[Speed>maxSpeed]=maxSpeed
+    Speed[Speed<minSpeed]=minSpeed
+
+    COL=cmap((Speed-minSpeed)/(maxSpeed-minSpeed)) # cmap requires value between 0 and 1
+    COL=COL[:,:,0:3]
+    MyImage=adjust_color_lightness(COL, image)
+
+    return MyImage
+
+def licPlot(x,y,u,v,ax,nLICKernel=31,texture=None,kernel=None,minSpeed=None,maxSpeed=None,accentuation=1.0,offset=0,spread=1,axial=True,nStreamlines=0,cmap=None):
+
+    MyImage=licImage(x,y,u,v,nLICKernel=nLICKernel,texture=texture,kernel=kernel,minSpeed=minSpeed,maxSpeed=maxSpeed,accentuation=accentuation,offset=offset,spread=spread,axial=axial,cmap=cmap)
+
+    # Background
+    im=ax.imshow(MyImage,extent=[min(x),max(x),max(y),min(y)])
+
+    if nStreamlines>0:
+        yseed=np.linspace(min(y)*0.9,max(y)*0.9,nStreamlines)
+        start=np.array([yseed*0,yseed])
+        sp=ax.streamplot(x,y,u,v,color='k',start_points=start.T,linewidth=0.7,density=30,arrowstyle='-')
+        qv=streamQuiver(ax,sp,n=5,scale=40,angles='xy')
+
+    return im
 
 
 def lic(u,v,texture=None,kernel=31):

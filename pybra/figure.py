@@ -2,9 +2,8 @@ from numpy import mod
 import pylab
 from re import sub
 import matplotlib as mpl
-from .colors import rgb2hex, fColrs
-from cycler import cycler
-
+# from cycler import cycler
+# from .colors import rgb2hex, fColrs
 # Should be placed in some kind of InitClear
 # mpl.rcParams['lines.linewidth'] = 1.55
 # mpl.rcParams['font.size'] = 15
@@ -60,12 +59,26 @@ def setFigureTitle(btitle):
 # --- Some Tools
 # --------------------------------------------------------------------------------
 def title2filename(title):
-    title=''.join([s.capitalize() for s in title.split()])
+    title=''.join([s[0].capitalize()+s[1:] for s in title.split()])
     return sub(r'[%|:;.\[ \]\\=^*_/]','',title)
 
 # --------------------------------------------------------------------------------
 # --- Exporter 
 # --------------------------------------------------------------------------------
+def findtitle(fig):
+    axTitle=None
+    title=''
+    # storing the title, figure name
+    title=fig._suptitle
+    if title is not None  and len(title.get_text())>0:
+        title=title.get_text()
+    else:
+        for ax in fig.get_axes():
+            title=ax.get_title()
+            if title is not None and len(title)>0:
+                axTitle=ax
+                break
+    return title,axTitle
 
 class FigureExporter:
 
@@ -83,15 +96,15 @@ class FigureExporter:
 
     @staticmethod
     def print2figures(figName,figNameLast,titleLatexSafe,script_name,script_run_dir,script_run_date):
-            print('in \\autoref{fig:%sMain}'%figNameLast);
+            print('in \\autoref{fig:%s}'%figNameLast);
             print('% ---------------------------------- FIGURES -------------------------------------')
             print('%% From script: %s, folder: %s, %s'%(script_name,script_run_dir,script_run_date));
-            print('%% subfig a:  in \\autoref{fig:%s}'%figNameLast);
-            print('%% subfig b:  in \\autoref{fig:%s}'%figName);
             print('\\noindent\\begin{figure}[!htb]\\centering%%');
-            print('  \\begin{subfigure}[b]{0.49\\textwidth}\\centering \\includegraphics[width=\\textwidth]{%s}\\caption{}\\label{fig:%s}\\end{subfigure}%%'%(figNameLast,figNameLast));
-            print('  \\begin{subfigure}[b]{0.49\\textwidth}\\centering \\includegraphics[width=\\textwidth]{%s}\\caption{}\\label{fig:%s}\\end{subfigure}%%'%(figName,figName));
-            print('  \\caption{%s}\\label{fig:%sMain}%%'%(titleLatexSafe,figNameLast));
+#             print('  \\begin{subfigure}[b]{0.49\\textwidth}\\centering \\includegraphics[width=\\textwidth]{%s}\\caption{}\\label{fig:%s}\\end{subfigure}%%'%(figNameLast,figNameLast));
+#             print('  \\begin{subfigure}[b]{0.49\\textwidth}\\centering \\includegraphics[width=\\textwidth]{%s}\\caption{}\\label{fig:%s}\\end{subfigure}%%'%(figName,figName));
+            print('  \\hfill\\includegraphics[width=0.49\\textwidth]{%s}%%'%(figNameLast));
+            print('  \\hfill\\includegraphics[width=0.49\\textwidth]{%s}\\hfill'%(figName));
+            print('  \\caption{%s}\\label{fig:%s}%%'%(titleLatexSafe,figNameLast));
             print('\\end{figure}');
             print('% --------------------------------------------------------------------------------')
             print(' ')
@@ -104,17 +117,10 @@ class FigureExporter:
         # params (for now, using global params)
         params=_global_params
 
-        ax=fig.gca()
-        fig_title=fig._suptitle
-        ax_title=ax.get_title()
-        # storing the title, figure name
-        if fig_title is not None  and len(fig_title.get_text())>0:
-            bAxisTitle=False
-            title=fig_title.get_text()
-        else:
-            bAxisTitle=True
-            title=ax_title
+
+        title,axTitle=findtitle(fig)
         titleLatexSafe = sub(r"[_%^]", "", title)
+        print('>>>>> TITLE',title)
         # figure name from title or figure number
         if title=='' or (title is None):
             figName='%d'%i
@@ -122,11 +128,10 @@ class FigureExporter:
             figName=title2filename(title);
 
 
-
         # remove figure title if needed
         if not params.btitle:
-            if bAxisTitle:
-                ax.set_title('')
+            if axTitle is not None:
+                axTitle.set_title('')
             else:
                 fig.suptitle('')
         
@@ -154,8 +159,8 @@ class FigureExporter:
             fig.savefig(filename)
             print('Figure file: ',filename)
             # restoring the title
-            if bAxisTitle:
-                ax.set_title(title)
+            if axTitle is not None:
+                axTitle.set_title(title)
             else:
                 fig.suptitle(title)
 
@@ -230,12 +235,20 @@ def test_export():
 
     x=linspace(0,2*pi,100);
     plt.figure()
-    plt.title('fig_python')
+    plt.title('First Example Figure')
     plt.grid()
     plt.plot(x,sin(x),'-')
     plt.xlabel('x coordinate [m]')
     plt.ylabel('Velocity  U_i [m/s]')
     plt.xlim([0,2*pi])
+
+    #plt.figure()
+    #plt.title('Second Example Figure')
+    #plt.grid()
+    #plt.plot(x,sin(x),'-')
+    #plt.xlabel('x coordinate [m]')
+    #plt.ylabel('Velocity  U_i [m/s]')
+    #plt.xlim([0,2*pi])
 
     export2pdf()
 
